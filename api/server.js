@@ -1,10 +1,23 @@
 import express from "express";
 import { InfluxDB } from "@influxdata/influxdb-client";
 import dotenv from "dotenv";
+import cors from "cors";
 
 dotenv.config();
 
 const app = express();
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+  })
+);
+
+app.use(express.json());
+
 const PORT = 5050;
 
 // ---- InfluxDB config ----
@@ -42,19 +55,24 @@ app.get("/", async (req, res) => {
 
 const formatData = (rawData) => {
 	// rawData = {result,table,_start,_stop,_time,_value,_field,_measurement,device}
-	return {value:rawData._value, time:rawData._time, device:rawData.device, field=rawData._field}
+	const formattedData = rawData.map(d => ({value:d._value, time:d._time, device:d.device, field:d._field}))
+	return formattedData;
 }
 
-app.post("/getData", async (req, res) => {
+app.post("/getdata", async (req, res) => {
 	try {
+		const defaultStart = '2026-02-24T09:00:00Z'
+		const defaultStop = '2026-02-24T10:00:00Z'
+		const defaultDevice = 'pi1'
 		const {start, stop, device} = req.body;
 		const queryApi = influxDB.getQueryApi(org);
 		const fluxQuery = `
 		 from(bucket: "${bucket}")
-			|> range(start: ${start}, stop: ${stop})
-			|> filter(fn: (r) => r["device"] == "${device}")
+			|> range(start: ${start??defaultStart}, stop: ${stop??defaultStop})
+			|> filter(fn: (r) => r["device"] == "${device??defaultDevice}")
 		    |> sort(columns: ["_time"], desc: true)
 		  	`;
+		console.log(`Query:\n${fluxQuery}`)
 		const raw = await queryApi.collectRows(fluxQuery);
 		res.status(200).json(formatData(raw));
 	} catch (err) {

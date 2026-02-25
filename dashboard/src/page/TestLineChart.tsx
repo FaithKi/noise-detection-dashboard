@@ -1,14 +1,49 @@
 import LineChart from "../components/LineChart";
+import QueryBuilder from "../components/QueryBuilder";
+import { useEffect, useState } from "react";
+import { fetchData } from "../utils.ts";
 
-const data = [
-  { time: new Date("2026-02-20T10:00:00Z"), value: 10 },
-  { time: new Date("2026-02-20T11:00:00Z"), value: 25 },
-  { time: new Date("2026-02-20T12:00:00Z"), value: 18 },
-  { time: new Date("2026-02-20T13:00:00Z"), value: 40 },
-  { time: new Date("2026-02-20T14:00:00Z"), value: 32 },
-];
+type DataPoint = {
+  time: Date;
+  value: number;
+};
+
+const getData = async () => {
+	const raw = await fetchData();
+	const formattedData = raw.map((d) => ({time: new Date(d.time), value:d.value}));
+	return formattedData;
+}
 
 export default function TestLineChart() {
-	console.log("TestLineChart Mounted")
-	return <LineChart data={data} />;
+	const [data, setData] = useState<DataPoint[]>([]);
+	useEffect(() => {
+		const load = async () => {
+			const formattedData = await getData();
+			setData(formattedData);
+		}
+		load();
+	}, [])
+	return (
+	<>
+		<LineChart data={data} />
+		<QueryBuilder
+		  onSubmit={async ({ start, stop, device }) => {
+			const startTime = new Date(start);
+			const thaiStartTime = new Date(startTime.getTime() - 7 * 60 * 60 * 1000); // minus 7 hrs (Thai to UTC)
+			const stopTime = new Date(stop);
+			const thaiStopTime = new Date(stopTime.getTime() - 7 * 60 * 60 * 1000); // minus 7 hrs (Thai to UTC)
+
+			// console.log(offsetDate.toISOString());
+		    const raw = await fetchData(thaiStartTime, thaiStopTime, device);
+		    
+		    const formatted = raw.map((d: any) => ({
+		      time: new Date(d.time),
+		      value: d.value,
+		    }));
+
+		    setData(formatted);
+		  }}
+		/>
+	</>
+	);
 }

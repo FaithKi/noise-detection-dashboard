@@ -1,4 +1,19 @@
+import { useEffect, useState } from "react";
+import { fetchData } from "../utils.ts"
+
+const getColor = () => {
+	//TODO: Aggregate data and return color to tell whether the area is noisy or not	
+}
+
 const NoiseMap = () => {
+	const [data, setData] = useState([]);
+	useEffect(() => {
+			const getData = () => {
+				return fetchData();	
+			};
+			setData(getData());
+		}
+		, []);
 	return (
 		<div style={{ width: "100%", maxWidth: 600 }}>
 		  <svg

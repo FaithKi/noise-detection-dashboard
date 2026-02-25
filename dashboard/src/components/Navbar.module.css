@@ -1,5 +1,54 @@
 .navbar {
-	background: #111;
-	color: white;
-	padding: 12px;
+  height: 64px;
+  padding: 0 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  background: linear-gradient(90deg, #111827, #1f2937);
+  color: white;
+
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.links {
+  display: flex;
+  gap: 24px;
+}
+
+.link {
+  text-decoration: none;
+  color: #d1d5db;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.link:hover {
+  color: white;
+  transform: translateY(-1px);
+}
+
+.activeLink {
+  text-decoration: none;
+  color: white;
+  font-weight: 600;
+  position: relative;
+}
+
+.activeLink::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #3b82f6;
+  border-radius: 2px;
 }

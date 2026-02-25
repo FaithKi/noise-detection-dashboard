@@ -1,29 +1,52 @@
-import React from "react";
 import { scaleTime, scaleLinear } from "@visx/scale";
 import { LinePath } from "@visx/shape";
 import { AxisBottom, AxisLeft } from "@visx/axis";
 import { Group } from "@visx/group";
+import { extent, max } from "d3-array";
 
-export default function LineChart({ data }) {
-  const width = 600;
-  const height = 300;
-  const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+type DataPoint = {
+  time: Date;
+  value: number;
+};
+
+type LineChartProps = {
+  data: DataPoint[];
+  width?: number;
+  height?: number;
+};
+
+const formatter = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
+export default function LineChart({
+  data,
+  width = 700,
+  height = 350,
+}: LineChartProps) {
+  if (!data || data.length === 0) {
+    return <div style={{ padding: 20 }}>No data</div>;
+  }
+
+  const margin = { top: 20, right: 20, bottom: 50, left: 60 };
 
   const xMax = width - margin.left - margin.right;
   const yMax = height - margin.top - margin.bottom;
 
-  // X scale (time)
+  // Safer domain calculation
+  const xDomain = extent(data, (d) => d.time) as [Date, Date];
+  const yDomain = [0, max(data, (d) => d.value) ?? 0];
+
   const xScale = scaleTime({
-    domain: [
-      Math.min(...data.map(d => d.time)),
-      Math.max(...data.map(d => d.time))
-    ],
+    domain: xDomain,
     range: [0, xMax],
   });
 
-  // Y scale (values)
   const yScale = scaleLinear({
-    domain: [0, Math.max(...data.map(d => d.value))],
+    domain: yDomain,
     range: [yMax, 0],
     nice: true,
   });
@@ -31,29 +54,42 @@ export default function LineChart({ data }) {
   return (
     <svg width={width} height={height}>
       <Group left={margin.left} top={margin.top}>
-
         {/* Line */}
-        <LinePath
+        <LinePath<DataPoint>
           data={data}
-          x={d => xScale(d.time)}
-          y={d => yScale(d.value)}
-          stroke="#3b82f6"
+          x={(d) => xScale(d.time)}
+          y={(d) => yScale(d.value)}
+          stroke="#FFA500"
           strokeWidth={2}
-          curve={null}
         />
 
-        {/* Axes */}
+        {/* X Axis */}
         <AxisBottom
           top={yMax}
           scale={xScale}
-          numTicks={5}
+          numTicks={6}
+          tickFormat={(d) => formatter.format(d as Date)}
+          stroke="#FFFFFF"
+          tickStroke="#FFFFFF"
+          tickLabelProps={() => ({
+            fill: "#9ca3af",   // 👈 text color
+            fontSize: 12,
+            textAnchor: "middle",
+          })}
         />
 
+        {/* Y Axis */}
         <AxisLeft
-          scale={yScale}
-          numTicks={5}
+        	scale={yScale}
+        	numTicks={5}
+        	stroke="#FFFFFF"
+        	tickStroke="#FFFFFF"
+	        tickLabelProps={() => ({
+	          fill: "#9ca3af",   // 👈 text color
+	          fontSize: 12,
+	          textAnchor: "end",
+	        })}
         />
-
       </Group>
     </svg>
   );
