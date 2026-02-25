@@ -1,2 +1,2 @@
 # Dashboard for library noise detection system
-## wireless 2/2025
+*wireless 2/2025*
