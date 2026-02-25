@@ -1,4 +1,4 @@
-import LineChart from "../components/LineChart";
+import ResponsiveChart from "../components/ResponsiveChart";
 import QueryBuilder from "../components/QueryBuilder";
 import { useEffect, useState } from "react";
 import { fetchData } from "../utils.ts";
@@ -25,7 +25,7 @@ export default function TestLineChart() {
 	}, [])
 	return (
 	<>
-		<LineChart data={data} />
+		<ResponsiveChart data={data} />
 		<QueryBuilder
 		  onSubmit={async ({ start, stop, device }) => {
 			const startTime = new Date(start);

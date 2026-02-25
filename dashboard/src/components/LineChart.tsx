@@ -11,8 +11,8 @@ type DataPoint = {
 
 type LineChartProps = {
   data: DataPoint[];
-  width?: number;
-  height?: number;
+  width: number;
+  height: number;
 };
 
 const formatter = new Intl.DateTimeFormat("en-GB", {
