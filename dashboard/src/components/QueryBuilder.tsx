@@ -1,5 +1,6 @@
 import { useState } from "react";
 import styles from "./QueryBuilder.module.css";
+import { getLocalDateTime } from "../utils.ts";
 
 type QueryParams = {
   start: string;
@@ -12,8 +13,8 @@ type QueryBuilderProps = {
 };
 
 export default function QueryBuilder({ onSubmit }: QueryBuilderProps) {
-  const [start, setStart] = useState("2026-02-24T16:00");
-  const [stop, setStop] = useState("2026-02-24T17:00");
+  const [start, setStart] = useState(getLocalDateTime(-1));
+  const [stop, setStop] = useState(getLocalDateTime(0));
   const [device, setDevice] = useState("pi1");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -48,10 +49,7 @@ export default function QueryBuilder({ onSubmit }: QueryBuilderProps) {
 
       <div className={styles.field}>
         <label>Device</label>
-        <select
-          value={device}
-          onChange={(e) => setDevice(e.target.value)}
-        >
+        <select value={device} onChange={(e) => setDevice(e.target.value)}>
           <option value="pi1">pi1</option>
           <option value="pi2">pi2</option>
           <option value="pi3">pi3</option>

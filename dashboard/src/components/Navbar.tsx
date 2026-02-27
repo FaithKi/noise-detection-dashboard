@@ -34,14 +34,14 @@ const Navbar = () => {
           Line Chart
         </NavLink>
 
-        <NavLink
+        {/* <NavLink
           to="/demo"
           className={({ isActive }) =>
             isActive ? styles.activeLink : styles.link
           }
         >
           Map Demo
-        </NavLink>
+        </NavLink> */}
       </div>
     </nav>
   );

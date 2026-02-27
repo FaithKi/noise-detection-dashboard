@@ -20,7 +20,8 @@ const statusColor = (d: DeviceRealtimeStatus) => {
 };
 
 export default function RealtimeNoiseMap() {
-  const [period, setPeriod] = useState("10m");
+  // const [period, setPeriod] = useState("10m");
+  const period = "5m";
   const [showNames, setShowNames] = useState(true);
   const [opacityScale, setOpacityScale] = useState(0.45);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -36,16 +37,34 @@ export default function RealtimeNoiseMap() {
   }));
 
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "72vh", padding: 24 }}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "72vh",
+        padding: 24,
+      }}
+    >
       <div style={{ width: "100%", maxWidth: 640 }} ref={containerRef}>
-
         {/* Connection status */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-          <div style={{
-            width: 10, height: 10, borderRadius: "50%",
-            background: connected ? "#22c55e" : "#ff4444",
-            boxShadow: connected ? "0 0 6px #22c55e" : "0 0 6px #ff4444",
-          }} />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 16,
+          }}
+        >
+          <div
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              background: connected ? "#22c55e" : "#ff4444",
+              boxShadow: connected ? "0 0 6px #22c55e" : "0 0 6px #ff4444",
+            }}
+          />
           <span style={{ color: "#e6eef8", fontSize: 13 }}>
             {connected ? "Connected — Real-time" : "Disconnected"}
           </span>
@@ -57,12 +76,19 @@ export default function RealtimeNoiseMap() {
         </div>
 
         {/* Controls */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            marginBottom: 12,
+          }}
+        >
           <NoiseLegend />
 
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          {/* <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <PeriodSelector period={period} onChange={setPeriod} />
-          </div>
+          </div> */}
 
           <MapControls
             opacityScale={opacityScale}
@@ -73,26 +99,46 @@ export default function RealtimeNoiseMap() {
         </div>
 
         {/* Device status cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10, marginBottom: 20 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+            gap: 10,
+            marginBottom: 20,
+          }}
+        >
           {devices.map((d) => (
-            <div key={d.device} style={{
-              background: "#1e293b",
-              borderRadius: 10,
-              padding: "12px 14px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-              border: `1.5px solid ${d.online ? "rgba(34,197,94,0.3)" : "rgba(255,99,71,0.3)"}`,
-            }}>
+            <div
+              key={d.device}
+              style={{
+                background: "#1e293b",
+                borderRadius: 10,
+                padding: "12px 14px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+                border: `1.5px solid ${d.online ? "rgba(34,197,94,0.3)" : "rgba(255,99,71,0.3)"}`,
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{
-                  width: 8, height: 8, borderRadius: "50%",
-                  background: statusColor(d),
-                  boxShadow: `0 0 4px ${statusColor(d)}`,
-                }} />
-                <span style={{ color: "#e6eef8", fontWeight: 600, fontSize: 14 }}>{d.device}</span>
+                <div
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: statusColor(d),
+                    boxShadow: `0 0 4px ${statusColor(d)}`,
+                  }}
+                />
+                <span
+                  style={{ color: "#e6eef8", fontWeight: 600, fontSize: 14 }}
+                >
+                  {d.device}
+                </span>
               </div>
-              <div style={{ color: statusColor(d), fontWeight: 700, fontSize: 16 }}>
+              <div
+                style={{ color: statusColor(d), fontWeight: 700, fontSize: 16 }}
+              >
                 {statusLabel(d)}
               </div>
               {d.online && (
