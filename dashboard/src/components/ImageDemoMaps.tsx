@@ -72,7 +72,12 @@ export default function ImageDemoMaps() {
                 return (
                   <g key={d.id}>
                     {offline ? (
-                      <circle cx={d.x} cy={d.y} r={radius} fill="none" stroke="#e5e7eb" strokeWidth={1.5} strokeOpacity={0.9} />
+                      <g>
+                        <circle cx={d.x} cy={d.y} r={radius + 3} fill="none" stroke="rgba(255,99,71,0.95)" strokeWidth={2} strokeDasharray="4 2" />
+                        <circle cx={d.x} cy={d.y} r={Math.max(2, Math.round(radius / 3))} fill="rgba(255,99,71,0.95)" />
+                        <line x1={d.x - radius / 2} y1={d.y - radius / 2} x2={d.x + radius / 2} y2={d.y + radius / 2} stroke="rgba(255,99,71,0.95)" strokeWidth={1.2} strokeLinecap="round" />
+                        <line x1={d.x - radius / 2} y1={d.y + radius / 2} x2={d.x + radius / 2} y2={d.y - radius / 2} stroke="rgba(255,99,71,0.95)" strokeWidth={1.2} strokeLinecap="round" />
+                      </g>
                     ) : (
                       <circle cx={d.x} cy={d.y} r={radius} fill={fill} fillOpacity={opacityScale} stroke="none" />
                     )}
@@ -85,7 +90,7 @@ export default function ImageDemoMaps() {
                         </text>
                       </g>
                     ) : null}
-                    <title>{`${d.id}: ${(p*100).toFixed(0)}% noisy (${count} samples)${offline?" — no samples":''}`}</title>
+                    <title>{`${d.id}: ${(p*100).toFixed(0)}% noisy (${count} samples)${offline?" — offline (no samples)":''}`}</title>
                   </g>
                 );
             })}

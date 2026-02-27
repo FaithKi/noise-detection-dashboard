@@ -45,19 +45,31 @@ const interpolateIDW = (
 
 export default function NoiseMap() {
 	const [summaries, setSummaries] = useState<DeviceSummary[]>([]);
+	const [period, setPeriod] = useState<string>("10m");
 	const [showNames, setShowNames] = useState(false);
 	const [opacityScale, setOpacityScale] = useState(0.45);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const containerRef = useRef<HTMLDivElement | null>(null);
 
+	const parsePeriodMs = (v: string) => {
+		if (!v) return 10 * 60 * 1000;
+		const n = Number(v.slice(0, -1));
+		if (v.endsWith("m")) return n * 60 * 1000;
+		if (v.endsWith("h")) return n * 60 * 60 * 1000;
+		return 10 * 60 * 1000;
+	};
+
 	useEffect(() => {
 		let mounted = true;
-
 		const load = async () => {
 			try {
+				const ms = parsePeriodMs(period);
+				const stop = new Date().toISOString();
+				const start = new Date(Date.now() - ms).toISOString();
+
 				const results = await Promise.all(
 					devices.map(async (d) => {
-						const raw = await fetchData(undefined, undefined, d.id);
+						const raw = await fetchData(start, stop, d.id);
 						const arr = Array.isArray(raw) ? raw : [];
 						const nums = arr.map((p: any) => Number(p.value)).filter((n) => n === 0 || n === 1);
 						const sum = nums.reduce((a, b) => a + b, 0);
@@ -76,7 +88,7 @@ export default function NoiseMap() {
 		return () => {
 			mounted = false;
 		};
-	}, []);
+	}, [period]);
 
 	// draw heatmap when summaries change
 	useEffect(() => {
@@ -133,11 +145,25 @@ export default function NoiseMap() {
 			<div style={{ width: "100%", maxWidth: 640 }} ref={containerRef}>
 			{/* controls + legend */}
 			<div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-				<div style={{ display: "flex", gap: 8 }}>
-					<div style={{ color: "#e6eef8", fontSize: 13 }}>Quiet</div>
-					<div style={{ width: 220, height: 12, borderRadius: 6, background: "linear-gradient(90deg, rgb(34,139,0), rgb(255,165,0), rgb(255,0,0))" }} />
-					<div style={{ color: "#e6eef8", fontSize: 13 }}>Noisy</div>
-				</div>
+					<div style={{ display: "flex", gap: 8 }}>
+						<div style={{ color: "#e6eef8", fontSize: 13 }}>Quiet</div>
+						<div style={{ width: 220, height: 12, borderRadius: 6, background: "linear-gradient(90deg, rgb(34,139,0), rgb(255,165,0), rgb(255,0,0))" }} />
+						<div style={{ color: "#e6eef8", fontSize: 13 }}>Noisy</div>
+					</div>
+
+					<div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+						<label style={{ color: "#e6eef8", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+							Period
+							<select value={period} onChange={(e) => setPeriod(e.target.value)} style={{ marginLeft: 8 }}>
+								<option value="5m">5 minutes</option>
+								<option value="10m">10 minutes</option>
+								<option value="30m">30 minutes</option>
+								<option value="1h">1 hour</option>
+								<option value="6h">6 hours</option>
+								<option value="24h">24 hours</option>
+							</select>
+						</label>
+					</div>
 
 				<div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 					<label style={{ color: "#e6eef8", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
@@ -157,6 +183,20 @@ export default function NoiseMap() {
 						Show device name
 					</label>
 				</div>
+			</div>
+
+			{/* Offline legend */}
+			<div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+				<svg width={24} height={24} viewBox="0 0 24 24" aria-hidden="true">
+					{/* dashed ring */}
+					<circle cx={12} cy={12} r={7} fill="none" stroke="rgba(255,99,71,0.95)" strokeWidth={2} strokeDasharray="4 2" />
+					{/* center dot */}
+					<circle cx={12} cy={12} r={2} fill="rgba(255,99,71,0.95)" />
+					{/* cross */}
+					<line x1={8} y1={8} x2={16} y2={16} stroke="rgba(255,99,71,0.95)" strokeWidth={1.2} strokeLinecap="round" />
+					<line x1={8} y1={16} x2={16} y2={8} stroke="rgba(255,99,71,0.95)" strokeWidth={1.2} strokeLinecap="round" />
+				</svg>
+				<div style={{ color: "#e6eef8", fontSize: 13 }}>Offline — no samples</div>
 			</div>
 
 
@@ -187,7 +227,12 @@ export default function NoiseMap() {
 												return (
 													<g key={d.id}>
 														{offline ? (
-															<circle cx={d.x} cy={d.y} r={radius} fill="none" stroke="#e5e7eb" strokeWidth={1.2} strokeOpacity={0.9} />
+															<g>
+																<circle cx={d.x} cy={d.y} r={radius + 3} fill="none" stroke="rgba(255,99,71,0.95)" strokeWidth={2} strokeDasharray="4 2" />
+																<circle cx={d.x} cy={d.y} r={Math.max(2, Math.round(radius / 3))} fill="rgba(255,99,71,0.95)" />
+																<line x1={d.x - radius / 2} y1={d.y - radius / 2} x2={d.x + radius / 2} y2={d.y + radius / 2} stroke="rgba(255,99,71,0.95)" strokeWidth={1.2} strokeLinecap="round" />
+																<line x1={d.x - radius / 2} y1={d.y + radius / 2} x2={d.x + radius / 2} y2={d.y - radius / 2} stroke="rgba(255,99,71,0.95)" strokeWidth={1.2} strokeLinecap="round" />
+															</g>
 														) : (
 															<circle cx={d.x} cy={d.y} r={radius} fill={fill} fillOpacity={opacityScale} stroke="none" />
 														)}
@@ -206,7 +251,7 @@ export default function NoiseMap() {
 																</text>
 															</g>
 														) : null}
-														<title>{`${d.id}: ${(p * 100).toFixed(0)}% noisy (${count} samples)`}</title>
+														<title>{`${d.id}: ${(p * 100).toFixed(0)}% noisy (${count} samples)${offline ? " — offline (no samples)" : ""}`}</title>
 													</g>
 												);
 												})}
