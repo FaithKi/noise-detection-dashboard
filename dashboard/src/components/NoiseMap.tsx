@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchData } from "../utils.ts";
 import devices from "../config/devices";
+import imageDevices from "../config/imageDevices";
+import lib3 from "../assets/library3rdFloor.jpg";
+import lib4 from "../assets/library4thFloor.jpg";
 
 type DeviceSummary = {
 	device: string;
@@ -42,6 +45,8 @@ const interpolateIDW = (
 
 export default function NoiseMap() {
 	const [summaries, setSummaries] = useState<DeviceSummary[]>([]);
+	const [showNames, setShowNames] = useState(false);
+	const [opacityScale, setOpacityScale] = useState(0.45);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -124,45 +129,92 @@ export default function NoiseMap() {
 	}, [summaries]);
 
 	return (
-		<div style={{ width: "100%", maxWidth: 600 }} ref={containerRef}>
-			<div style={{ position: "relative", width: "100%" }}>
-				<canvas
-					ref={canvasRef}
-					style={{ display: "block", width: "100%", height: "auto", borderRadius: 6 }}
-				/>
+		<div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "72vh", padding: 24 }}>
+			<div style={{ width: "100%", maxWidth: 640 }} ref={containerRef}>
+			{/* controls + legend */}
+			<div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+				<div style={{ display: "flex", gap: 8 }}>
+					<div style={{ color: "#e6eef8", fontSize: 13 }}>Quiet</div>
+					<div style={{ width: 220, height: 12, borderRadius: 6, background: "linear-gradient(90deg, rgb(34,139,0), rgb(255,165,0), rgb(255,0,0))" }} />
+					<div style={{ color: "#e6eef8", fontSize: 13 }}>Noisy</div>
+				</div>
 
-				<svg
-					viewBox={`0 0 ${canvasW} ${canvasH}`}
-					style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", pointerEvents: "none" }}
-				>
-					<rect x="0" y="0" width={canvasW} height={canvasH} fill="none" />
+				<div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+					<label style={{ color: "#e6eef8", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+						Opacity
+						<input
+							type="range"
+							min={0}
+							max={1}
+							step={0.05}
+							value={opacityScale}
+							onChange={(e) => setOpacityScale(Number(e.target.value))}
+						/>
+						<span style={{ minWidth: 36, textAlign: "right" }}>{Math.round(opacityScale * 100)}%</span>
+					</label>
+					<label style={{ color: "#e6eef8", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+						<input type="checkbox" style={{ marginRight: 4 }} checked={showNames} onChange={(e) => setShowNames(e.target.checked)} />
+						Show device name
+					</label>
+				</div>
+			</div>
 
-					{summaries.map((s) => {
-						const pos = devices.find((d) => d.id === s.device);
-						if (!pos) return null;
-						const color = probToColor(s.p);
-						const fill = `rgb(${color.r},${color.g},${color.b})`;
-						const radius = 6 + Math.min(12, s.p * 20);
+
+
+
+
+			{/* Library image overlays using live data */}
+			<div style={{ marginTop: 20 }}>
+				<h3 style={{ marginBottom: 8 }}>Library Floor Maps</h3>
+				<div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+					{imageDevices.map((imgCfg, idx) => {
+						const imgSrc = imgCfg.image.includes("3rd") ? lib3 : lib4;
 						return (
-							<g key={s.device} pointerEvents="auto">
-								<circle cx={pos.x} cy={pos.y} r={radius} fill={fill} stroke="#fff" strokeWidth={1} />
-								<text x={pos.x} y={pos.y - radius - 4} fontSize={8} textAnchor="middle" fill="#111827">
-									{s.device}
-								</text>
-								<title>{`${s.device}: ${(s.p * 100).toFixed(0)}% noisy (${s.count} samples)`}</title>
-							</g>
-						);
-					})}
-				</svg>
-			</div>
+							<div key={imgCfg.image} className="image-card">
+								<div className="image-inner">
+									<div style={{ position: "relative", width: "100%" }}>
+										<img src={imgSrc} alt={imgCfg.image} style={{ display: "block", width: "100%", height: "auto" }} />
 
-			<div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
-				<div style={{ width: 16, height: 12, background: "rgb(34,139,0)" }} />
-				<div style={{ fontSize: 12 }}>Quiet</div>
-				<div style={{ flex: 1 }} />
-				<div style={{ fontSize: 12 }}>Noisy</div>
-				<div style={{ width: 16, height: 12, background: "rgb(255,0,0)" }} />
+										<svg viewBox={`0 0 ${canvasW} ${canvasH}`} style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+											{imgCfg.devices.map((d) => {
+												const s = summaries.find((x) => x.device === d.id) ?? { device: d.id, p: 0, count: 0 };
+												const p = s.p;
+												const count = s.count;
+												const offline = count === 0;
+												const color = probToColor(p);
+												const fill = `rgb(${color.r},${color.g},0)`;
+												const radius = 6 + Math.min(12, p * 20);
+												return (
+													<g key={d.id}>
+														{offline ? (
+															<circle cx={d.x} cy={d.y} r={radius} fill="none" stroke="#e5e7eb" strokeWidth={1.2} strokeOpacity={0.9} />
+														) : (
+															<circle cx={d.x} cy={d.y} r={radius} fill={fill} fillOpacity={opacityScale} stroke="none" />
+														)}
+														{showNames && !offline ? (
+															<g>
+																<rect x={d.x - 14} y={d.y - 7} width={28} height={14} rx={6} fill="rgba(0,0,0,0.65)" />
+																<text x={d.x} y={d.y} fontSize={8} textAnchor="middle" dominantBaseline="central" fill="#ffffff" fontWeight={700}>
+																	{d.id}
+																</text>
+															</g>
+														) : null}
+														<title>{`${d.id}: ${(p * 100).toFixed(0)}% noisy (${count} samples)`}</title>
+													</g>
+												);
+												})}
+										</svg>
+									</div>
+
+									{imgCfg.label && <div className="image-label-below">{imgCfg.label}</div>}
+								</div>
+							</div>
+						);
+						})}
+					</div>
+				</div>
 			</div>
-		</div>
+			</div>
+		
 	);
 }
