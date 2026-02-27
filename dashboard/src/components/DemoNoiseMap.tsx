@@ -103,7 +103,7 @@ export default function DemoNoiseMap() {
                 ) : (
                   <circle cx={d.x} cy={d.y} r={radius} fill={fill} stroke="#fff" strokeWidth={1} />
                 )}
-                <text x={d.x} y={d.y - radius - 4} fontSize={8} textAnchor="middle" fill="#111827">{d.id}</text>
+                <text x={d.x} y={d.y - radius - 4} fontSize={7} textAnchor="middle" fill="#111827">{d.id}</text>
                 <title>{`${d.id}: ${(p*100).toFixed(0)}% noisy (${count} samples)${offline?" — offline/quiet":''}`}</title>
               </g>
             );

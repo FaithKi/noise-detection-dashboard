@@ -77,18 +77,11 @@ export default function ImageDemoMaps() {
                       <circle cx={d.x} cy={d.y} r={radius} fill={fill} fillOpacity={opacityScale} stroke="none" />
                     )}
                     {/* compact below-label removed; only show compact centered badge when enabled */}
-                    {showNames && !offline ? (
+                    {showNames ? (
                       <g>
-                        <rect
-                          x={d.x - 14}
-                          y={d.y - 7}
-                          width={28}
-                          height={14}
-                          rx={6}
-                          fill="rgba(0,0,0,0.65)"
-                        />
-                        <text x={d.x} y={d.y} fontSize={8} textAnchor="middle" dominantBaseline="central" fill="#ffffff" fontWeight={700}>
-                          {d.id}
+                        <rect x={d.x - 17} y={d.y - 9} width={34} height={16} rx={6} fill={offline ? "rgba(75,85,99,0.45)" : "rgba(0,0,0,0.65)"} />
+                        <text x={d.x} y={d.y} fontSize={8} textAnchor="middle" dominantBaseline="central" fill={offline ? "#e5e7eb" : "#ffffff"} fontWeight={700}>
+                          {d.id}{offline ? " (offline)" : ""}
                         </text>
                       </g>
                     ) : null}

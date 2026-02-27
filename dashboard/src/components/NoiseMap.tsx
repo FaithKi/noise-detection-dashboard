@@ -191,11 +191,18 @@ export default function NoiseMap() {
 														) : (
 															<circle cx={d.x} cy={d.y} r={radius} fill={fill} fillOpacity={opacityScale} stroke="none" />
 														)}
-														{showNames && !offline ? (
+														{showNames ? (
 															<g>
-																<rect x={d.x - 14} y={d.y - 7} width={28} height={14} rx={6} fill="rgba(0,0,0,0.65)" />
-																<text x={d.x} y={d.y} fontSize={8} textAnchor="middle" dominantBaseline="central" fill="#ffffff" fontWeight={700}>
-																	{d.id}
+																<rect
+																	x={d.x - (offline ? 30 : 20)}
+																	y={d.y - 9}
+																	width={offline ? 60 : 40}
+																	height={16}
+																	rx={6}
+																	fill={ "rgba(0,0,0,0.65)"}
+																/>
+																<text x={d.x} y={d.y} fontSize={8} textAnchor="middle" dominantBaseline="central" fill={offline ? "#e5e7eb" : "#ffffff"} fontWeight={700}>
+																	{d.id}{offline ? " (offline)" : ""}
 																</text>
 															</g>
 														) : null}
