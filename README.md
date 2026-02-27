@@ -4,8 +4,8 @@ A small project to visualize binary (0/1) noise-sensor data on a floor plan.
 
 This repo contains:
 
-- `api/` — Express API that queries InfluxDB and exposes `/getdata`.
-- `dashboard/` — React + Vite frontend that renders an interpolated noise heatmap and device overlays.
+- `api/` — Express API that queries InfluxDB, exposes `/getdata`, and serves real-time device status via Socket.IO.
+- `dashboard/` — React + Vite frontend that renders an interpolated noise heatmap, device overlays, and a real-time monitoring page.
 
 Key concepts
 
@@ -15,6 +15,12 @@ Key concepts
 
 What changed / new features
 
+- **Real-time page** (`/realtime`): live device status via Socket.IO. The server polls InfluxDB every 10 seconds and pushes per-device summaries to connected clients.
+  - Each device shows **Online** (Loud / Quiet based on duty cycle) or **Offline** (no data received in the last 10 seconds).
+  - Offline devices display "Last seen" time if they had data earlier in the window, or "No data" otherwise.
+  - Period selector (5m–24h) controls the time window used to compute the noise duty cycle.
+  - Floor map overlays show pulsing rings on online devices and the offline marker on inactive ones.
+- **History page** (`/`, formerly "Home"): browse historical noise data with period or custom time-range selectors.
 - Period selector: pick a recent window (5m, 10m, 30m, 1h, 6h, 24h). Default: last 10 minutes.
 - Custom range: switch to "Custom" and set `start` / `stop` with local `datetime-local` inputs, then click Apply.
   - The UI shows the currently-applied range above the maps (local time) and exposes UTC ISO in a tooltip for debugging.
@@ -49,11 +55,13 @@ Recommended server-side options (optional improvements)
 
 Developer notes & files of interest
 
-- `dashboard/src/components/NoiseMap.tsx` — main visual: IDW heatmap (canvas) + SVG overlays, period/custom range UI, legend and controls.
+- `dashboard/src/components/RealtimeNoiseMap.tsx` — real-time page: Socket.IO-powered device status cards + floor map overlays.
+- `dashboard/src/hooks/useRealtimeDevices.ts` — custom React hook managing the Socket.IO connection and state.
+- `dashboard/src/components/NoiseMap.tsx` — history page: IDW heatmap (canvas) + SVG overlays, period/custom range UI, legend and controls.
 - `dashboard/src/components/DemoNoiseMap.tsx` — demo-only map using `dashboard/src/sample/sampleData.ts`.
 - `dashboard/src/components/ImageDemoMaps.tsx` — image overlays for library floors with device positions.
 - `dashboard/src/config/devices.ts` & `dashboard/src/config/imageDevices.ts` — device coordinates and image mappings.
-- `api/server.js` — POST `/getdata` implementation and Flux query used to fetch rows from InfluxDB.
+- `api/server.js` — POST `/getdata` endpoint, Socket.IO real-time handler, and Flux queries for InfluxDB.
 
 Run locally
 
@@ -73,10 +81,4 @@ npm install
 npm run dev
 ```
 
-3. Open the URL shown by Vite (default `http://localhost:5173`). Use the navbar to open the demo or the main map.
-
-If you want me to:
-
-- Add server-side aggregation in `api/server.js` (I can patch the API to return `{ device, count, mean }` summaries),
-- Add a UI warning or hard limit for very large periods, or
-- Implement contour extraction / safe-zone polygons — tell me which and I'll implement it.
+3. Open the URL shown by Vite (default `http://localhost:5173`). The navbar shows **Real-time** (live monitoring) and **History** (historical data browser).

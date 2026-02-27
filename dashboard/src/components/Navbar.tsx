@@ -8,12 +8,21 @@ const Navbar = () => {
 
       <div className={styles.links}>
         <NavLink
+          to="/realtime"
+          className={({ isActive }) =>
+            isActive ? styles.activeLink : styles.link
+          }
+        >
+          Real-time
+        </NavLink>
+
+        <NavLink
           to="/"
           className={({ isActive }) =>
             isActive ? styles.activeLink : styles.link
           }
         >
-          Home
+          History
         </NavLink>
 
         <NavLink
