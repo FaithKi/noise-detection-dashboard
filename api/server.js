@@ -1,4 +1,6 @@
 import express from "express";
+import { createServer } from "http";
+import { Server } from "socket.io";
 import { InfluxDB } from "@influxdata/influxdb-client";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -6,15 +8,25 @@ import cors from "cors";
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
+
+const CORS_ORIGINS = ["http://localhost:5173"];
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173"
-    ],
+    origin: CORS_ORIGINS,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
   })
 );
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: CORS_ORIGINS,
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
 
 app.use(express.json());
 
@@ -81,7 +93,100 @@ app.post("/getdata", async (req, res) => {
 	}
 });
 
+// ---- Socket.IO real-time device status ----
+const DEVICES = ["pi1", "pi2", "pi3", "pi4"];
+
+const parsePeriodMs = (v) => {
+	if (!v) return 10 * 60 * 1000;
+	const n = Number(v.slice(0, -1));
+	if (v.endsWith("m")) return n * 60 * 1000;
+	if (v.endsWith("h")) return n * 60 * 60 * 1000;
+	return 10 * 60 * 1000;
+};
+
+// A device is "online" only if its most recent data point is within this threshold
+const ONLINE_THRESHOLD_MS = 10_000; // 10 seconds — matches the polling interval
+
+const queryDeviceStatus = async (device, periodMs) => {
+	try {
+		const queryApi = influxDB.getQueryApi(org);
+		const now = Date.now();
+		const stop = new Date(now).toISOString();
+		const start = new Date(now - periodMs).toISOString();
+		const fluxQuery = `
+			from(bucket: "${bucket}")
+				|> range(start: ${start}, stop: ${stop})
+				|> filter(fn: (r) => r["device"] == "${device}")
+				|> sort(columns: ["_time"], desc: true)
+		`;
+		const raw = await queryApi.collectRows(fluxQuery);
+		const formatted = raw.map((d) => Number(d._value)).filter((n) => n === 0 || n === 1);
+		const count = formatted.length;
+		const sum = formatted.reduce((a, b) => a + b, 0);
+		const p = count > 0 ? sum / count : 0;
+
+		// Determine online/offline by checking the most recent data timestamp
+		let lastSeen = null;
+		let online = false;
+		if (raw.length > 0) {
+			// raw is sorted desc by _time, so first element is the most recent
+			lastSeen = raw[0]._time;
+			const lastSeenMs = new Date(lastSeen).getTime();
+			online = (now - lastSeenMs) <= ONLINE_THRESHOLD_MS;
+		}
+
+		return { device, p, count, online, lastSeen };
+	} catch (err) {
+		console.error(`Socket query error for ${device}:`, err.message);
+		return { device, p: 0, count: 0, online: false, lastSeen: null };
+	}
+};
+
+const queryAllDevices = async (periodMs) => {
+	return Promise.all(DEVICES.map((d) => queryDeviceStatus(d, periodMs)));
+};
+
+io.on("connection", (socket) => {
+	console.log(`[Socket.IO] Client connected: ${socket.id}`);
+	let intervalId = null;
+	let currentPeriod = "10m";
+
+	const startPolling = (period) => {
+		if (intervalId) clearInterval(intervalId);
+		currentPeriod = period || "10m";
+		const periodMs = parsePeriodMs(currentPeriod);
+
+		// Send immediately on subscribe
+		queryAllDevices(periodMs).then((statuses) => {
+			socket.emit("device-status", { period: currentPeriod, devices: statuses, timestamp: new Date().toISOString() });
+		});
+
+		// Then poll every 10 seconds
+		intervalId = setInterval(async () => {
+			const statuses = await queryAllDevices(periodMs);
+			socket.emit("device-status", { period: currentPeriod, devices: statuses, timestamp: new Date().toISOString() });
+		}, 10_000);
+	};
+
+	// Client sends "subscribe" with { period: "5m" | "10m" | "30m" | "1h" | ... }
+	socket.on("subscribe", (data) => {
+		console.log(`[Socket.IO] ${socket.id} subscribed with period: ${data?.period}`);
+		startPolling(data?.period);
+	});
+
+	// Client can change period without reconnecting
+	socket.on("change-period", (data) => {
+		console.log(`[Socket.IO] ${socket.id} changed period to: ${data?.period}`);
+		startPolling(data?.period);
+	});
+
+	socket.on("disconnect", () => {
+		console.log(`[Socket.IO] Client disconnected: ${socket.id}`);
+		if (intervalId) clearInterval(intervalId);
+	});
+});
+
 // Start server
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

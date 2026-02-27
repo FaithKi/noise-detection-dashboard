@@ -1,46 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchData } from "../utils.ts";
 import devices from "../config/devices";
-import imageDevices from "../config/imageDevices";
-import lib3 from "../assets/library3rdFloor.jpg";
-import lib4 from "../assets/library4thFloor.jpg";
+import { probToColor, interpolateIDW, CANVAS_W, CANVAS_H } from "./shared/mapUtils";
+import FloorMapOverlay from "./shared/FloorMapOverlay";
+import OfflineLegend from "./shared/OfflineLegend";
+import NoiseLegend from "./shared/NoiseLegend";
+import PeriodSelector from "./shared/PeriodSelector";
+import MapControls from "./shared/MapControls";
 
 type DeviceSummary = {
 	device: string;
 	p: number; // duty cycle (0..1)
 	count: number;
-};
-
-const canvasW = 200;
-const canvasH = 100;
-
-const probToColor = (p: number) => {
-	// p in [0,1] -> green(0) to red(1)
-	const r = Math.round(34 + (255 - 34) * p);
-	const g = Math.round(139 - 139 * p);
-	const b = 0;
-	return { r, g, b };
-};
-
-// IDW interpolation
-const interpolateIDW = (
-	x: number,
-	y: number,
-	points: { x: number; y: number; v: number }[],
-	power = 2,
-	eps = 1e-6
-) => {
-	let nom = 0;
-	let denom = 0;
-	for (const p of points) {
-		const dx = x - p.x;
-		const dy = y - p.y;
-		const d2 = dx * dx + dy * dy + eps;
-		const w = 1 / Math.pow(Math.sqrt(d2), power);
-		nom += w * p.v;
-		denom += w;
-	}
-	return denom ? nom / denom : 0;
 };
 
 export default function NoiseMap() {
@@ -117,10 +88,10 @@ export default function NoiseMap() {
 		if (!canvas) return;
 
 		const dpr = window.devicePixelRatio || 1;
-		canvas.width = canvasW * dpr;
-		canvas.height = canvasH * dpr;
-		canvas.style.width = `${canvasW}px`;
-		canvas.style.height = `${canvasH}px`;
+		canvas.width = CANVAS_W * dpr;
+		canvas.height = CANVAS_H * dpr;
+		canvas.style.width = `${CANVAS_W}px`;
+		canvas.style.height = `${CANVAS_H}px`;
 		const ctx = canvas.getContext("2d");
 		if (!ctx) return;
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -139,8 +110,8 @@ export default function NoiseMap() {
 		for (let py = 0; py < canvas.height; py++) {
 			for (let px = 0; px < canvas.width; px++) {
 				// map back to viewBox coords (0..200, 0..100)
-				const vx = (px / (canvas.width - 1)) * (canvasW - 1);
-				const vy = (py / (canvas.height - 1)) * (canvasH - 1);
+				const vx = (px / (canvas.width - 1)) * (CANVAS_W - 1);
+				const vy = (py / (canvas.height - 1)) * (CANVAS_H - 1);
 				const val = interpolateIDW(vx, vy, points, 2);
 				const { r, g, b } = probToColor(val);
 				const alpha = Math.round(180 * val); // more opaque for higher prob
@@ -157,7 +128,7 @@ export default function NoiseMap() {
 		if (containerRef.current) {
 			const rect = containerRef.current.getBoundingClientRect();
 			canvas.style.width = `${rect.width}px`;
-			canvas.style.height = `${(rect.width * canvasH) / canvasW}px`;
+			canvas.style.height = `${(rect.width * CANVAS_H) / CANVAS_W}px`;
 		}
 	}, [summaries]);
 
@@ -166,25 +137,11 @@ export default function NoiseMap() {
 			<div style={{ width: "100%", maxWidth: 640 }} ref={containerRef}>
 			{/* controls + legend */}
 			<div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-					<div style={{ display: "flex", gap: 8 }}>
-						<div style={{ color: "#e6eef8", fontSize: 13 }}>Quiet</div>
-						<div style={{ width: 220, height: 12, borderRadius: 6, background: "linear-gradient(90deg, rgb(34,139,0), rgb(255,165,0), rgb(255,0,0))" }} />
-						<div style={{ color: "#e6eef8", fontSize: 13 }}>Noisy</div>
-					</div>
+					<NoiseLegend />
 
 					<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
 						<div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-							<label style={{ color: "#e6eef8", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
-								Period
-								<select value={period} onChange={(e) => setPeriod(e.target.value)} style={{ marginLeft: 8 }}>
-									<option value="5m">5 minutes</option>
-									<option value="10m">10 minutes</option>
-									<option value="30m">30 minutes</option>
-									<option value="1h">1 hour</option>
-									<option value="6h">6 hours</option>
-									<option value="24h">24 hours</option>
-								</select>
-							</label>
+							<PeriodSelector period={period} onChange={setPeriod} />
 
 							<label style={{ color: "#e6eef8", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
 								<input type="radio" name="rangeMode" value="recent" checked={mode === "recent"} onChange={() => setMode("recent")} />
@@ -220,39 +177,16 @@ export default function NoiseMap() {
 						) : null}
 					</div>
 
-				<div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-					<label style={{ color: "#e6eef8", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
-						Opacity
-						<input
-							type="range"
-							min={0}
-							max={1}
-							step={0.05}
-							value={opacityScale}
-							onChange={(e) => setOpacityScale(Number(e.target.value))}
-						/>
-						<span style={{ minWidth: 36, textAlign: "right" }}>{Math.round(opacityScale * 100)}%</span>
-					</label>
-					<label style={{ color: "#e6eef8", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
-						<input type="checkbox" style={{ marginRight: 4 }} checked={showNames} onChange={(e) => setShowNames(e.target.checked)} />
-						Show device name
-					</label>
-				</div>
+				<MapControls
+					opacityScale={opacityScale}
+					onOpacityChange={setOpacityScale}
+					showNames={showNames}
+					onShowNamesChange={setShowNames}
+				/>
 			</div>
 
 			{/* Offline legend */}
-			<div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, padding: "6px 8px", borderRadius: 8 }}>
-				<svg width={24} height={24} viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block" }}>
-					{/* dashed ring */}
-					<circle cx={12} cy={12} r={7} fill="none" stroke="rgba(255,99,71,0.95)" strokeWidth={2} strokeDasharray="4 2" />
-					{/* center dot */}
-					<circle cx={12} cy={12} r={2} fill="rgba(255,99,71,0.95)" />
-					{/* cross */}
-					<line x1={8} y1={8} x2={16} y2={16} stroke="rgba(255,99,71,0.95)" strokeWidth={1.2} strokeLinecap="round" />
-					<line x1={8} y1={16} x2={16} y2={8} stroke="rgba(255,99,71,0.95)" strokeWidth={1.2} strokeLinecap="round" />
-				</svg>
-				<div style={{ color: "#e6eef8", fontSize: 13 }}>Offline — no samples</div>
-			</div>
+			<OfflineLegend />
 
 
 
@@ -272,64 +206,11 @@ export default function NoiseMap() {
 						Showing: {new Date(startLocal).toLocaleString()} → {new Date(stopLocal).toLocaleString()}
 					</div>
 				)}
-				<div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
-					{imageDevices.map((imgCfg, idx) => {
-						const imgSrc = imgCfg.image.includes("3rd") ? lib3 : lib4;
-						return (
-							<div key={imgCfg.image} className="image-card">
-								<div className="image-inner">
-									<div style={{ position: "relative", width: "100%" }}>
-										<img src={imgSrc} alt={imgCfg.image} style={{ display: "block", width: "100%", height: "auto" }} />
-
-										<svg viewBox={`0 0 ${canvasW} ${canvasH}`} style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
-											{imgCfg.devices.map((d) => {
-												const s = summaries.find((x) => x.device === d.id) ?? { device: d.id, p: 0, count: 0 };
-												const p = s.p;
-												const count = s.count;
-												const offline = count === 0;
-												const color = probToColor(p);
-												const fill = `rgb(${color.r},${color.g},0)`;
-												const radius = 6 + Math.min(12, p * 20);
-												return (
-													<g key={d.id}>
-														{offline ? (
-															<g>
-																<circle cx={d.x} cy={d.y} r={radius + 3} fill="none" stroke="rgba(255,99,71,0.95)" strokeWidth={2} strokeDasharray="4 2" />
-																<circle cx={d.x} cy={d.y} r={Math.max(2, Math.round(radius / 3))} fill="rgba(255,99,71,0.95)" />
-																<line x1={d.x - radius / 2} y1={d.y - radius / 2} x2={d.x + radius / 2} y2={d.y + radius / 2} stroke="rgba(255,99,71,0.95)" strokeWidth={1.2} strokeLinecap="round" />
-																<line x1={d.x - radius / 2} y1={d.y + radius / 2} x2={d.x + radius / 2} y2={d.y - radius / 2} stroke="rgba(255,99,71,0.95)" strokeWidth={1.2} strokeLinecap="round" />
-															</g>
-														) : (
-															<circle cx={d.x} cy={d.y} r={radius} fill={fill} fillOpacity={opacityScale} stroke="none" />
-														)}
-														{showNames ? (
-															<g>
-																<rect
-																	x={d.x - (offline ? 30 : 20)}
-																	y={d.y - 9}
-																	width={offline ? 60 : 40}
-																	height={16}
-																	rx={6}
-																	fill={ "rgba(0,0,0,0.65)"}
-																/>
-																<text x={d.x} y={d.y} fontSize={8} textAnchor="middle" dominantBaseline="central" fill={offline ? "#e5e7eb" : "#ffffff"} fontWeight={700}>
-																	{d.id}{offline ? " (offline)" : ""}
-																</text>
-															</g>
-														) : null}
-														<title>{`${d.id}: ${(p * 100).toFixed(0)}% noisy (${count} samples)${offline ? " — offline (no samples)" : ""}`}</title>
-													</g>
-												);
-												})}
-										</svg>
-									</div>
-
-									{imgCfg.label && <div className="image-label-below">{imgCfg.label}</div>}
-								</div>
-							</div>
-						);
-						})}
-					</div>
+				<FloorMapOverlay
+					summaries={summaries.map((s) => ({ ...s, online: s.count > 0 }))}
+					showNames={showNames}
+					opacityScale={opacityScale}
+				/>
 				</div>
 			</div>
 			</div>
