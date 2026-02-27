@@ -56,6 +56,7 @@ export default function QueryBuilder({ onSubmit }: QueryBuilderProps) {
           <option value="pi2">pi2</option>
           <option value="pi3">pi3</option>
           <option value="pi4">pi4</option>
+          <option value="all">All devices</option>
         </select>
       </div>
 

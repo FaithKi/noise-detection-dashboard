@@ -2,6 +2,7 @@ import ResponsiveChart from "../components/ResponsiveChart";
 import QueryBuilder from "../components/QueryBuilder";
 import { useEffect, useState } from "react";
 import { fetchData } from "../utils.ts";
+import devices from "../config/devices";
 
 type DataPoint = {
   time: Date;
@@ -16,6 +17,7 @@ const getData = async () => {
 
 export default function TestLineChart() {
 	const [data, setData] = useState<DataPoint[]>([]);
+	const [series, setSeries] = useState<{ id: string; data: DataPoint[] }[] | null>(null);
 	useEffect(() => {
 		const load = async () => {
 			const formattedData = await getData();
@@ -25,19 +27,30 @@ export default function TestLineChart() {
 	}, [])
 	return (
 	<>
-		<ResponsiveChart data={data} />
+		<ResponsiveChart data={data} series={series ?? undefined} />
 		<QueryBuilder
-		  onSubmit={async ({ start, stop, device }) => {
-		    // `start` and `stop` are ISO strings (UTC) from QueryBuilder; pass them directly.
-		    const raw = await fetchData(start, stop, device);
-		    
-		    const formatted = raw.map((d: any) => ({
-		      time: new Date(d.time),
-		      value: d.value,
-		    }));
-
-		    setData(formatted);
-		  }}
+					onSubmit={async ({ start, stop, device }) => {
+						if (device === "all") {
+							// fetch each device series in parallel
+							const results = await Promise.all(
+								devices.map(async (d) => {
+									const raw = await fetchData(start, stop, d.id);
+									const formatted = (Array.isArray(raw) ? raw : []).map((r: any) => ({ time: new Date(r.time), value: r.value }));
+									return { id: d.id, data: formatted };
+								})
+							);
+							setSeries(results);
+							setData([]);
+						} else {
+							const raw = await fetchData(start, stop, device);
+							const formatted = raw.map((d: any) => ({
+								time: new Date(d.time),
+								value: d.value,
+							}));
+							setSeries(null);
+							setData(formatted);
+						}
+					}}
 		/>
 	</>
 	);
