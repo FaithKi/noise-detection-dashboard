@@ -46,6 +46,19 @@ const interpolateIDW = (
 export default function NoiseMap() {
 	const [summaries, setSummaries] = useState<DeviceSummary[]>([]);
 	const [period, setPeriod] = useState<string>("10m");
+	const [mode, setMode] = useState<"recent" | "custom">("recent");
+	const nowLocal = new Date();
+	const formatLocalInput = (d: Date) => {
+		const pad = (n: number) => String(n).padStart(2, "0");
+		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
+			d.getMinutes()
+		)}`;
+	};
+	const defaultStopLocal = formatLocalInput(nowLocal);
+	const defaultStartLocal = formatLocalInput(new Date(Date.now() - 10 * 60 * 1000));
+	const [startLocal, setStartLocal] = useState<string>(defaultStartLocal);
+	const [stopLocal, setStopLocal] = useState<string>(defaultStopLocal);
+	const [rangeVersion, setRangeVersion] = useState(0);
 	const [showNames, setShowNames] = useState(false);
 	const [opacityScale, setOpacityScale] = useState(0.45);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -63,9 +76,17 @@ export default function NoiseMap() {
 		let mounted = true;
 		const load = async () => {
 			try {
-				const ms = parsePeriodMs(period);
-				const stop = new Date().toISOString();
-				const start = new Date(Date.now() - ms).toISOString();
+				let start: string;
+				let stop: string;
+				if (mode === "recent") {
+					const ms = parsePeriodMs(period);
+					stop = new Date().toISOString();
+					start = new Date(Date.now() - ms).toISOString();
+				} else {
+					// custom range: convert local inputs to ISO
+					start = new Date(startLocal).toISOString();
+					stop = new Date(stopLocal).toISOString();
+				}
 
 				const results = await Promise.all(
 					devices.map(async (d) => {
@@ -88,7 +109,7 @@ export default function NoiseMap() {
 		return () => {
 			mounted = false;
 		};
-	}, [period]);
+	}, [period, mode, rangeVersion]);
 
 	// draw heatmap when summaries change
 	useEffect(() => {
@@ -151,18 +172,52 @@ export default function NoiseMap() {
 						<div style={{ color: "#e6eef8", fontSize: 13 }}>Noisy</div>
 					</div>
 
-					<div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-						<label style={{ color: "#e6eef8", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
-							Period
-							<select value={period} onChange={(e) => setPeriod(e.target.value)} style={{ marginLeft: 8 }}>
-								<option value="5m">5 minutes</option>
-								<option value="10m">10 minutes</option>
-								<option value="30m">30 minutes</option>
-								<option value="1h">1 hour</option>
-								<option value="6h">6 hours</option>
-								<option value="24h">24 hours</option>
-							</select>
-						</label>
+					<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+						<div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+							<label style={{ color: "#e6eef8", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+								Period
+								<select value={period} onChange={(e) => setPeriod(e.target.value)} style={{ marginLeft: 8 }}>
+									<option value="5m">5 minutes</option>
+									<option value="10m">10 minutes</option>
+									<option value="30m">30 minutes</option>
+									<option value="1h">1 hour</option>
+									<option value="6h">6 hours</option>
+									<option value="24h">24 hours</option>
+								</select>
+							</label>
+
+							<label style={{ color: "#e6eef8", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+								<input type="radio" name="rangeMode" value="recent" checked={mode === "recent"} onChange={() => setMode("recent")} />
+								Recent
+							</label>
+							<label style={{ color: "#e6eef8", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+								<input type="radio" name="rangeMode" value="custom" checked={mode === "custom"} onChange={() => setMode("custom")} />
+								Custom
+							</label>
+						</div>
+
+						{mode === "custom" ? (
+							<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+								<input 
+									type="datetime-local"
+									value={startLocal}
+									onChange={(e) => {
+										const v = e.target.value;
+										setStartLocal(v);
+										if (v > stopLocal) setStopLocal(v);
+									}}
+								/>
+								<input
+									type="datetime-local"
+									value={stopLocal}
+									onChange={(e) => setStopLocal(e.target.value)}
+									min={startLocal}
+								/>
+								<button onClick={() => setRangeVersion((v) => v + 1)} style={{ padding: "6px 10px", borderRadius: 6 }}>
+									Apply
+								</button>
+							</div>
+						) : null}
 					</div>
 
 				<div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -186,8 +241,8 @@ export default function NoiseMap() {
 			</div>
 
 			{/* Offline legend */}
-			<div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-				<svg width={24} height={24} viewBox="0 0 24 24" aria-hidden="true">
+			<div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, padding: "6px 8px", borderRadius: 8 }}>
+				<svg width={24} height={24} viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block" }}>
 					{/* dashed ring */}
 					<circle cx={12} cy={12} r={7} fill="none" stroke="rgba(255,99,71,0.95)" strokeWidth={2} strokeDasharray="4 2" />
 					{/* center dot */}
@@ -205,7 +260,18 @@ export default function NoiseMap() {
 
 			{/* Library image overlays using live data */}
 			<div style={{ marginTop: 20 }}>
-				<h3 style={{ marginBottom: 8 }}>Library Floor Maps</h3>
+				{/* current range summary */}
+
+				<h3 style={{ marginBottom: 8 }}>Library Floor Maps</h3>				
+				{mode === "recent" ? (
+					<div style={{ color: "#cfe8ff", fontSize: 13, marginBottom: 6 }}>Showing: Last {period}</div>
+				) : (
+					<div
+						style={{ color: "#cfe8ff", fontSize: 13, marginBottom: 6 }}
+						title={`UTC: ${new Date(startLocal).toISOString()} → ${new Date(stopLocal).toISOString()}`}>
+						Showing: {new Date(startLocal).toLocaleString()} → {new Date(stopLocal).toLocaleString()}
+					</div>
+				)}
 				<div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
 					{imageDevices.map((imgCfg, idx) => {
 						const imgSrc = imgCfg.image.includes("3rd") ? lib3 : lib4;

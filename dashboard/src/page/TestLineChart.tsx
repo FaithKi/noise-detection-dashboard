@@ -28,13 +28,8 @@ export default function TestLineChart() {
 		<ResponsiveChart data={data} />
 		<QueryBuilder
 		  onSubmit={async ({ start, stop, device }) => {
-			const startTime = new Date(start);
-			const thaiStartTime = new Date(startTime.getTime() - 7 * 60 * 60 * 1000); // minus 7 hrs (Thai to UTC)
-			const stopTime = new Date(stop);
-			const thaiStopTime = new Date(stopTime.getTime() - 7 * 60 * 60 * 1000); // minus 7 hrs (Thai to UTC)
-
-			// console.log(offsetDate.toISOString());
-		    const raw = await fetchData(thaiStartTime, thaiStopTime, device);
+		    // `start` and `stop` are ISO strings (UTC) from QueryBuilder; pass them directly.
+		    const raw = await fetchData(start, stop, device);
 		    
 		    const formatted = raw.map((d: any) => ({
 		      time: new Date(d.time),
