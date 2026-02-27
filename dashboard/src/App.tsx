@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./page/Home";
 import Realtime from "./page/Realtime";
 import TestLineChart from "./page/TestLineChart";
@@ -18,7 +18,7 @@ function App() {
 	      	</Routes>
 	    </BrowserRouter>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
